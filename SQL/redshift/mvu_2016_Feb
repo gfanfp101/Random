@@ -1,0 +1,92 @@
+drop table if exists tmp_mvu_uid_feb;
+create table tmp_mvu_uid_feb as
+select distinct uid from tmp_inventory_feb_agg2
+where inventory_index >= 44;
+
+drop table if exists tmp_all_uid_feb;
+create table tmp_all_uid_feb as
+select distinct uid from tmp_inventory_feb_agg2;
+
+drop table if exists tmp_user_top_topics;
+select uid, title, displayname, max(score) 
+into tmp_user_top_topics
+from (select *, row_number() over (partition by uid order by score desc) as rank
+from topics)
+where rank <= 20 and score > 350
+group by uid, title, displayname;
+
+drop table if exists tmp_mvu_topic_percent;
+with cnt_table as (select count(*) as cnt from tmp_mvu_uid_feb)
+select t.title, t.displayname, cast(count(m.uid) as float)/c.cnt*1000000 as p
+into tmp_mvu_topic_percent
+from tmp_mvu_uid_feb m join tmp_user_top_topics t
+on m.uid = t.uid
+join cnt_table c
+on 1=1
+group by t.title, t.displayname, c.cnt;
+
+drop table if exists tmp_all_topic_percent;
+with cnt_table as (select count(*) as cnt from tmp_all_uid_feb)
+select t.title, t.displayname, cast(count(m.uid) as float)/c.cnt*1000000 as p
+into tmp_all_topic_percent
+from tmp_all_uid_feb m join tmp_user_top_topics t
+on m.uid = t.uid
+join cnt_table c
+on 1=1
+group by t.title, t.displayname, c.cnt;
+
+drop table if exists tmp_mvu_topic_score;
+select m.title, m.displayname, m.p*log(m.p/a.p) as score
+into tmp_mvu_topic_score
+from tmp_mvu_topic_percent m
+inner join tmp_all_topic_percent a
+on m.title = a.title and m.displayname = a.displayname;
+
+select * from tmp_mvu_topic_score where title not like 's:%' order by score desc limit 1000;
+select * from tmp_mvu_topic_score where title like 's:%' order by score desc limit 1000;
+
+drop table if exists tmp_mvu_cohort;
+with ads_prod_type as (select max(prod_type) as prod_type, uid from ads_feb group by uid)
+select u.uid, service_facebook_gender, predict_gender, predict_gender_confidence, 
+predict_gender_reason, service_facebook_location, user_geo_city, user_geo_state, user_geo_country, a.prod_type
+into tmp_mvu_cohort
+from tmp_mvu_uid_feb m join user_aux u
+on m.uid = u.uid
+join ads_prod_type a
+on a.uid = m.uid
+
+select * from tmp_mvu_cohort limit 100;
+select user_geo_country, count(1) from tmp_mvu_cohort group by 1;
+select prod_type, count(1) from tmp_mvu_cohort group by 1;
+
+drop table if exists tmp_topics_idf;
+select t.title, t.displayname, count(1) as cnt
+into tmp_topics_idf
+from tmp_user_top_topics t join tmp_all_uid_feb a
+on t.uid = a.uid
+group by t.title, t.displayname
+
+select predict_gender, count(1) from tmp_mvu_cohort group by 1;
+
+drop table tmp_mvu_topic_score_related_topics;
+with r as
+(select t1_displayname, t1_title, listagg(t2_displayname, ',') 
+within group (order by kl_idf desc)
+over (partition by t1_title, t1_displayname) as related_topics
+from temp_topic_to_topic_kl_idf_v2
+where t1_title not like 's:%' and t2_title not like 's:%')
+select distinct t.title, t.displayname, t.score, r.related_topics
+into tmp_mvu_topic_score_related_topics
+from tmp_mvu_topic_score t
+join r
+on t.title = r.t1_title and t.displayname = r.t1_displayname
+where t.title not like 's:%'
+order by t.score desc;
+
+select * from temp_topic_to_topic_kl_idf_v2 limit 100;
+select * from tmp_mvu_topic_score_related_topics order by score desc limit 200;
+
+
+
+select daykey, count(distinct uid) from toc_day where section_id = 'auth/flipboard/user%2F2056335' group by daykey;
+
