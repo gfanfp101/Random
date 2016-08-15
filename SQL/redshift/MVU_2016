@@ -1,0 +1,23 @@
+unload ('select uid, sum(inventory), prod_type, appmode, countryname, substring(dayhour, 1, 7) from ads where dayhour > to_date(\'2016-01-01\', \'YYYY-MM-DD\') and uid != 0 and event_action = \'inventory\' group by uid, prod_type, appmode, countryname, substring(dayhour, 1, 7)') to 's3://../gfan/ads/2016/part'
+CREDENTIALS 'aws_access_key_id...' delimiter '\t';
+
+COPY core_schema.tmp_ads_inventory_2016 FROM 's3://../gfan/ads/2016' CREDENTIALS 'aws_access_key_id...' delimiter '\t' emptyasnull blanksasnull maxerror 2000 ignoreblanklines TRIMBLANKS TRUNCATECOLUMNS;
+
+CREATE TABLE tmp_ads_inventory_2016 (
+    uid int encode lzo,
+    inventory int encode lzo,
+    prod_type varchar encode lzo,
+    appmode varchar encode lzo,
+    countryname varchar encode lzo,
+    month varchar encode lzo
+);
+
+create table tmp_ads_inventory_aggregated_2016 as
+select uid, sum(inventory)/count(month) as inventory_per_month, sum(inventory) as total_inventory from tmp_ads_inventory_2016 group by uid
+
+select * from tmp_ads_inventory_aggregated_2016 limit 100;
+
+select inventory_per_month, count(uid) as user_count, sum(total_inventory) as agg_inventory from tmp_ads_inventory_aggregated_2016 group by inventory_per_month;
+
+create table tmp_ads_mvu_uid_2016 as
+select uid, inventory_per_month, total_inventory from tmp_ads_inventory_aggregated_2016 where inventory_per_month >= 32;
