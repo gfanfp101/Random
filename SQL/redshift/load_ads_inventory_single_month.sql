@@ -1,4 +1,4 @@
-unload ('select uid, sum(inventory), prod_type, appmode, countryname from ads where dayhour > \'2016-04-11\' and dayhour < \'2016-05-11\' and uid != 0 and event_action = \'inventory\' group by uid, prod_type, appmode, countryname') to 's3://../tmp/gfan/ads/2016/part'
+unload ('select uid, sum(inventory), prod_type, appmode, countryname from ads where dayhour > to_date(\'2016-05-14\', \'YYYY-MM-DD\') and dayhour < to_date(\'2016-08-15\', \'YYYY-MM-DD\') and uid != 0 and event_action = \'inventory\' group by uid, prod_type, appmode, countryname') to 's3://../tmp/gfan/ads/2016/part'
 CREDENTIALS 'aws_access_key_id=...' delimiter '\t';
 
 CREATE TABLE tmp_ads_inventory_2016_04 (
