@@ -21,3 +21,26 @@ select inventory_per_month, count(uid) as user_count, sum(total_inventory) as ag
 
 create table tmp_ads_mvu_uid_2016 as
 select uid, inventory_per_month, total_inventory from tmp_ads_inventory_aggregated_2016 where inventory_per_month >= 32;
+
+create table tmp_ads_mvu_uid_topic_2016 as
+select tu.uid, inventory_per_month, total_inventory, count(tp.title) 
+from tmp_ads_mvu_uid_2016 tu
+join
+topics tp
+on tu.uid = tp.uid
+group by tu.uid, tu.inventory_per_month, tu.total_inventory;
+
+drop table if exists tmp_ads_mvu_2016;
+create table tmp_ads_mvu_2016
+as 
+select a.uid, a.inventory_per_month, a.total_inventory, a.topic_count, b.email, MD5(b.email) as email_md5, c.user_geo_locale
+from 
+(select cast(uid as bigint) as uid, inventory_per_month, total_inventory, "count" as topic_count from tmp_ads_mvu_uid_topic_2016 where "count" >= 3) a
+join 
+(select uid, email from serviceaccount where email is not null and email <> 'NULL' and len(email) > 0 and active > 1) b
+on a.uid = b.uid
+join
+(select * from user_aux where user_geo_locale = 'en_US') c
+on a.uid = c.uid;
+
+select count(*) from tmp_ads_mvu_2016 limit 100;
