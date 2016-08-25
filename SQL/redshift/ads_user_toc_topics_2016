@@ -1,0 +1,65 @@
+drop table if exists tmp_us_user_with_3_topics;
+create table tmp_us_user_with_3_topics as
+select a.uid, a.cnt as topic_count
+from (select uid, count(title) as cnt from topics group by uid) a
+join
+(select uid, user_geo_locale from user_aux where user_geo_locale = 'en_US') b
+on a.uid = b.uid
+where a.cnt >= 3
+
+select count(*) from tmp_us_user_with_3_topics;
+
+drop table if exists tmp_us_user_with_4_tocs;
+create table tmp_us_user_with_4_tocs as
+select a.uid, a.cnt as toc_count
+from (select uid, count(section_id) as cnt from toc group by uid) a
+join
+(select uid, user_geo_locale from user_aux where user_geo_locale = 'en_US') b
+on a.uid = b.uid
+where a.cnt >= 4
+
+select count(*) from tmp_us_user_with_4_tocs;
+
+drop table if exists tmp_ads_user_2016_all;
+create table tmp_ads_user_2016_all
+as 
+select a.uid, a.inventory_per_month, a.total_inventory, e.topic_count, e.toc_count, b.email, MD5(b.email) as email_md5, 'en_US' as user_geo_locale
+from 
+(select uid, inventory_per_month, total_inventory from tmp_ads_inventory_aggregated_2016 where inventory_per_month) a
+join 
+(select uid, email from serviceaccount where email is not null and email <> 'NULL' and len(email) > 0 and service = 'flipboard' and active >= 1) b
+on a.uid = b.uid
+join
+( select c.uid, c.topic_count, d.toc_count 
+	from 
+	tmp_us_user_with_3_topics c
+	full outer join
+	tmp_us_user_with_4_tocs d
+	on c.uid = d.uid
+) e
+on a.uid = e.uid
+
+select count(c.uid) from 
+	tmp_us_user_with_3_topics c
+	full outer join
+	tmp_us_user_with_4_tocs d
+	on c.uid = d.uid
+	
+
+select count(distinct email_md5) from tmp_ads_user_2016_all;
+
+select count(*) from serviceaccount where email is not null and email <> 'NULL' and len(email) > 0 and service = 'flipboard' and active >= 1;
+
+select count(*) from tmp_ads_inventory_aggregated_2016;
+
+abort;
+
+select count(a.uid) from
+(select uid, inventory_per_month, total_inventory from tmp_ads_inventory_aggregated_2016 where inventory_per_month) a
+join 
+tmp_us_user_with_3_topics c
+on a.uid = c.uid;
+
+
+select * from ads limit 200;
+
