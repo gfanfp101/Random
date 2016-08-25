@@ -30,7 +30,7 @@ join
 (select uid, email from serviceaccount where email is not null and email <> 'NULL' and len(email) > 0 and service = 'flipboard' and active >= 1) b
 on a.uid = b.uid
 join
-( select c.uid, c.topic_count, d.toc_count 
+( select coalesce(c.uid, d.uid) as uid, c.topic_count, d.toc_count 
 	from 
 	tmp_us_user_with_3_topics c
 	full outer join
@@ -39,11 +39,13 @@ join
 ) e
 on a.uid = e.uid
 
-select count(c.uid) from 
+select count(coalesce(c.uid, d.uid)) from 
 	tmp_us_user_with_3_topics c
 	full outer join
 	tmp_us_user_with_4_tocs d
 	on c.uid = d.uid
+	
+select count(*) from tmp_us_user_with_4_tocs;
 	
 
 select count(distinct email_md5) from tmp_ads_user_2016_all;
