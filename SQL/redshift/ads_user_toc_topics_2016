@@ -1,3 +1,12 @@
+###
+table list:
+tmp_us_user_with_4_tocs
+tmp_us_user_with_3_topics
+tmp_ads_inventory_2016
+tmp_ads_inventory_aggregated_2016
+tmp_ads_user_2016_all
+###
+
 drop table if exists tmp_us_user_with_3_topics;
 create table tmp_us_user_with_3_topics as
 select a.uid, a.cnt as topic_count
