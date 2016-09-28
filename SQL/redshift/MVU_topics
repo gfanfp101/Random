@@ -1,0 +1,13 @@
+drop table tmp_ads_user_2016_all_topics;
+create table tmp_ads_user_2016_all_topics as
+select u.uid, title, displayname, score 
+from (
+select uid, title, displayname, score
+from (select *, row_number() over (partition by uid order by score desc) as rank
+from (select * from topics where title not like 's:%'))
+where rank <= 20 and score > 350
+group by uid, title, displayname, score
+) t
+join
+tmp_ads_user_2016_all u
+on t.uid = u.uid;
