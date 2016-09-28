@@ -11,3 +11,5 @@ group by uid, title, displayname, score
 join
 tmp_ads_user_2016_all u
 on t.uid = u.uid;
+
+unload ('select uid, listagg(title, \',\') as topic_list from tmp_ads_user_2016_all_topics group by uid') to 's3://.../tmp/gfan/ads_user_topics/2016/part' CREDENTIALS 'aws_access_key_id=...' delimiter '\t' allowoverwrite parallel off;
